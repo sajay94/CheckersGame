@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#008577</color>
+    <color name="darkSquares">#654321</color>
+    <color name="lightSquares">#EDCBA9</color>
+    <color name="playerColor1">#7CBDA7</color>
+    <color name="playerColor2">#ffa500</color>
+    <color name="colorPrimaryDark">#00574B</color>
+    <color name="colorAccent">#D81B60</color>
+</resources>
