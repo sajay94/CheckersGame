@@ -42,7 +42,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         /**Iterates through activity_main.xml and creates a Cell object for each button.
          * This is necessary in order to pass the List to other activities (i.e GameActivity).
-         *
          */
         for (int x = 0; x < gameBoard.getChildCount(); x++) {
             LinearLayout rowLayout = (LinearLayout) gameBoard.getChildAt(x);
@@ -71,6 +70,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View view) {
+        /**First checks if the clicked button contains a checker. If it does, that button is marked by storing it
+         * in the recent button. If it does not, it checks whether recent contains a button and fills the clicked
+         * button with recent's drawable. So we need to revise the code and in the if else and move it into a seperate
+         * method for convenience
+         */
         if (pieceLocations.containsValue(view.getId())) {
             recent = (Button) view;
             Toast.makeText(this, "Recent set", Toast.LENGTH_SHORT).show();
@@ -82,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             recent = null;
         }
     }
+    /** Fills the the board by placing pieces on both sides. */
     public void fillStartBoard(int start, int end) {
         for (int x = start; x < end; x++) {
             for (int y = 0; y < 8; y++) {
@@ -91,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     }
-
+    /** Fills an individual with the piece drawable. Should only be called at the beginning of the game. */
     public void fillCell(int x, int y) {
         String tag = "" + x + y;
         int id = buttonId.get(tag);
