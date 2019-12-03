@@ -14,9 +14,18 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
+    /** The LinearLayout which conatins the board. It holds basically the entirety of the activity_main.xml*/
     private LinearLayout gameBoard;
+
+    /** A list of a Parcelable object called Cell. Cells contain information about each button's tag and id.
+     * See Cell class for more info */
     private List<Cell> coordinates;
+
+    /** A map of every Button on the board (64). The String is a string of two ints representing the position of the
+     * button. For example, "00" represents the top left button and "77" represents bottom left. Integer is the id*/
     private Map<String, Integer> buttonId;
+
+    /** Basically a subset of the buttonId map only including the buttons which have a counter on the them. */
     private Map<String, Integer> pieceLocations;
 
     private Button recent;
@@ -31,6 +40,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         gameBoard = findViewById(R.id.gameLayout);
         recent = null;
 
+        /**Iterates through activity_main.xml and creates a Cell object for each button.
+         * This is necessary in order to pass the List to other activities (i.e GameActivity).
+         *
+         */
         for (int x = 0; x < gameBoard.getChildCount(); x++) {
             LinearLayout rowLayout = (LinearLayout) gameBoard.getChildAt(x);
             for (int y = 0; y < rowLayout.getChildCount(); y++) {
@@ -41,12 +54,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
         }
+        // The rest of this should be in GameActivity
+
+        //Fills the buttonId map
         for (Cell c : coordinates) {
             String xy = c.getTag().substring(7);
             buttonId.put(xy, c.getId());
         }
         fillStartBoard(0, 3);
-
         fillStartBoard(5, 8);
 
 //        Intent intent = new Intent(this, GameActivity.class);
