@@ -84,6 +84,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //        startActivity(intent);
     }
 
+    /**
+     * psuedocode for server aspect
+     * List storedList = new List[]
+     * while (notMoved) {
+     *     wait 2 seconds
+     *     list = GET blah.amazonaws.com:8765/?{gameid}
+     *     if (list.length() > storedList.length()) {
+     *         newMove = list[list.length() - 1];
+     *         String origSpot = newMove.substring(0,2);
+     *         String newSpot = newMove.substring(2);
+     *         recent = (Button) findviewbyId(pieceLocations.get(origSpot))
+     *         toPass = (Button) findviewbyID(pieceLocations.get(newSpot))
+     *         movePiece(toPass)
+     *         notMoved = false;
+     *     } else {
+     *         copy(list, storedList);
+     *     }
+     * }
+     */
+
     @Override
     public void onClick(View view) {
         /**First checks if the clicked button contains a checker. If it does, that button is marked by storing it
@@ -118,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 // Toast.makeText(this, Integer.toString(view.getId()), Toast.LENGTH_SHORT).show();
             } else if ((newY == oldY - 2) && (newX == oldX - 2)) { //if the move is a jump, check to see if middle is occupied by other player
                 String middle = "" + (oldY - 1) + (oldX - 1);
-                if (pieceLocations.containsKey(middle)) {
+                if (pieceLocations.containsKey(middle) && playerLocations.get(middle) != currentPlayerID) {
                     findViewById(pieceLocations.get(middle)).setForeground(null);
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
@@ -127,7 +147,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             } else if ((newY == oldY - 2) && (newX == oldX + 2)) {
                 String middle = "" + (oldY - 1) + (oldX + 1);
-                if (pieceLocations.containsKey(middle)) {
+                if (pieceLocations.containsKey(middle) && playerLocations.get(middle) != currentPlayerID) {
                     findViewById(pieceLocations.get(middle)).setForeground(null);
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
@@ -136,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             } else if ((newY == oldY + 2) && (newX == oldX - 2)) {
                 String middle = "" + (oldY + 1) + (oldX - 1);
-                if (pieceLocations.containsKey(middle)) {
+                if (pieceLocations.containsKey(middle) && playerLocations.get(middle) != currentPlayerID) {
                     findViewById(pieceLocations.get(middle)).setForeground(null);
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
@@ -145,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             } else if ((newY == oldY + 2) && (newX == oldX + 2)) {
                 String middle = "" + (oldY + 1) + (oldX + 1);
-                if (pieceLocations.containsKey(middle)) {
+                if (pieceLocations.containsKey(middle) && playerLocations.get(middle) != currentPlayerID) {
                     findViewById(pieceLocations.get(middle)).setForeground(null);
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
