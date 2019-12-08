@@ -169,6 +169,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * watchForChange checks the server, sees if the length is longer, and if so, sets newEntryFound to be true
      *  and can now use the latest update to the server to call a move.
      * This function  should not be called if newEntryFound != false to begin with
+     * Should be called in some sort of main loop to be made that controls the game flow
      */
     public void startWatching() {
         System.out.println("startWatching called!");
@@ -219,6 +220,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         View newSpot = findViewById(buttonId.get(newCoords));
         movePiece(newSpot);
     }
+
+    public void postMove(final String move) {
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, url + "post", new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                System.out.println(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                System.out.println(error.toString());
+            }
+        }){
+            @Override
+            protected Map<String, String> getParams(){
+                Map<String, String> params = new HashMap<String, String>();
+                params.put("ID", gamePass);
+                params.put("data", move);
+                return params;
+            }
+        };
+        RequestQueue queue = Volley.newRequestQueue(this);
+        queue.add(stringRequest);
+    }
     @Override
     public void onClick(View view) {
         /**First checks if the clicked button contains a checker. If it does, that button is marked by storing it
@@ -226,21 +251,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
          * button with recent's drawable. So we need to revise the code and in the if else and move it into a seperate
          * method for convenience
          */
-        startWatching();
-        System.out.println("Past startWatching!");
         if (pieceLocations.containsValue(view.getId())) { /** Here is where we're going to check current player against the user player */
             if (currentPlayerID == playerLocations.get(view.getTag().toString().substring(7))) { /** this part may be redundant once we implement the HTTP move making */
                 recent = (Button) view;
                 // Toast.makeText(this, "Recent set", Toast.LENGTH_SHORT).show();
             }
         } else if (recent != null) {
-            movePiece(view);
+            String moveMade = movePiece(view);
+            // if moveMade != null, POST it to server so other player's game updates.
+            if (moveMade != null) {
+                postMove(moveMade);
+            }
         }
     }
     /** Logic for moving a piece from one xy to another, including capturing other pieces.
      * Needs recent to be set to the original Button View cell of the piece, and needs
-     * the Button View of the new spot to be passed to it*/
-    public void movePiece(View view) {
+     * the Button View of the new spot to be passed to it
+     * Returns the concatenated string of the move made, which is used to POST the move to the server
+     *  ONLY when movePiece is called in onClick (meaning that the move was made by a person, not the server)
+     *  returns null if the move was not valid.
+     * */
+    public String movePiece(View view) {
         // Toast below shows the clicked button's id for debugging / me figuring this out
         // Toast.makeText(this, newCell, Toast.LENGTH_SHORT).show();
         String newCell = view.getTag().toString().substring(7); //holds the id of the potential cell to be moved to
@@ -249,11 +280,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int newX = Integer.parseInt(newCell.substring(1));
         int oldY = Integer.parseInt(prevCell.substring(0,1));
         int oldX = Integer.parseInt(prevCell.substring(1));
+        String move = prevCell + newCell;
         if ((newY % 2 == 0 && newX % 2 == 1) || (newY % 2 == 1 && newX % 2 == 0)) { // only allow moves to brown squares
             if ((newY == oldY - 1) && (newX == oldX - 1 || newX == oldX + 1) ||
                     (newY == oldY + 1) && (newX == oldX - 1 || newX == oldX + 1)) { // only allow moves to directly diagonal squares
                 moveHelper(view, prevCell, newCell);
                 togglePlayers();
+                return move;
                 // Toast.makeText(this, Integer.toString(view.getId()), Toast.LENGTH_SHORT).show();
             } else if ((newY == oldY - 2) && (newX == oldX - 2)) { //if the move is a jump, check to see if middle is occupied by other player
                 String middle = "" + (oldY - 1) + (oldX - 1);
@@ -263,6 +296,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
                     togglePlayers();
+                    return move;
                 }
             } else if ((newY == oldY - 2) && (newX == oldX + 2)) {
                 String middle = "" + (oldY - 1) + (oldX + 1);
@@ -272,6 +306,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
                     togglePlayers();
+                    return move;
                 }
             } else if ((newY == oldY + 2) && (newX == oldX - 2)) {
                 String middle = "" + (oldY + 1) + (oldX - 1);
@@ -281,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
                     togglePlayers();
+                    return move;
                 }
             } else if ((newY == oldY + 2) && (newX == oldX + 2)) {
                 String middle = "" + (oldY + 1) + (oldX + 1);
@@ -290,9 +326,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
                     togglePlayers();
+                    return move;
                 }
             }
         }
+        return null;
     }
 
     public void moveHelper(View view, String prevCell, String newCell) {
