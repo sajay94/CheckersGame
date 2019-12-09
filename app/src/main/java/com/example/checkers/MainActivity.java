@@ -2,6 +2,7 @@ package com.example.checkers;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -74,16 +75,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Intent intent = getIntent();
+
         coordinates = new ArrayList<>();
         buttonId = new HashMap<>();
         pieceLocations = new HashMap<>();
         playerLocations = new HashMap<>();
         gameBoard = findViewById(R.id.gameLayout);
-        userID = 2; /** Right here I hardcoded this as 2, but really this will be set depending on a value passed in the intent. */
+        userID = intent.getIntExtra("userID", 2); /** Right here I hardcoded this as 2, but really this will be set depending on a value passed in the intent. */
         currentPlayerID = 2; // this though should always START as 2, and toggle every move
         recent = null;
         url = "http://ec2-18-218-224-138.us-east-2.compute.amazonaws.com:8765/";
-        gamePass = "tr33"; /** Also needs to be set from intent */
+        gamePass = intent.getStringExtra("gameID"); /** Also needs to be set from intent */
         newEntryFound = false;
 
         /**Iterates through activity_main.xml and creates a Cell object for each button.
@@ -109,9 +112,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         fillStartBoard(0, 3);
         fillStartBoard(5, 8);
 
-//        Intent intent = new Intent(this, GameActivity.class);
-//        intent.putParcelableArrayListExtra("coordinates", (ArrayList<? extends Parcelable>) coordinates);
-//        startActivity(intent);
+        /**
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (currentPlayerID != userID) {
+                    startWatching();
+                    handler.postDelayed(this, 3000);
+                }
+            }
+        }, 3000);
+         */
+
+        if (userID == 1) {
+            startWatching();
+        }
     }
 
     /**
@@ -172,11 +188,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Should be called in some sort of main loop to be made that controls the game flow
      */
     public void startWatching() {
-        System.out.println("startWatching called!");
         StringRequest stringRequest = new StringRequest
                 (Request.Method.GET, url + "?" + gamePass, new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        // System.out.println(response + "(startWatching)");
                         raw_response = response;
                         raw_response = raw_response.substring(2);
                         raw_response = raw_response.substring(0, raw_response.length() - 2);
@@ -204,6 +220,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 });
         RequestQueue queue = Volley.newRequestQueue(this);
         queue.add(stringRequest);
+        System.out.println("Startwatching called!");
     }
 
     /**
@@ -225,7 +242,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url + "post", new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
-                System.out.println(response);
+                System.out.println(response + "(POST)");
+                newEntryFound = false;
+                startWatching();
             }
         }, new Response.ErrorListener() {
             @Override
@@ -243,6 +262,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         };
         RequestQueue queue = Volley.newRequestQueue(this);
         queue.add(stringRequest);
+        System.out.println("Post move called!");
     }
     @Override
     public void onClick(View view) {
