@@ -7,4 +7,5 @@
     <color name="playerColor2">#ffa500</color>
     <color name="colorPrimaryDark">#00574B</color>
     <color name="colorAccent">#D81B60</color>
+    <color name="colorKing">#CCCCCC</color>
 </resources>

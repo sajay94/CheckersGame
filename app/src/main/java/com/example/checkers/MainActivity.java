@@ -1,7 +1,9 @@
 package com.example.checkers;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.DialogFragment;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -69,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     /** Use to stop the watching of the server */
     private boolean newEntryFound;
 
+    /** Button to store a piece that will be moved */
     private Button recent;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,7 +93,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         newEntryFound = false;
 
         /**Iterates through activity_main.xml and creates a Cell object for each button.
-         * This is necessary in order to pass the List to other activities (i.e GameActivity).
          */
         for (int x = 0; x < 8; x++) {
             LinearLayout rowLayout = (LinearLayout) gameBoard.getChildAt(x);
@@ -102,52 +104,38 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
         }
-        // The rest of this should be in GameActivity
 
         //Fills the buttonId map
         for (Cell c : coordinates) {
             String xy = c.getTag().substring(7);
             buttonId.put(xy, c.getId());
         }
+
+        // As you may expect, fills in the start board
         fillStartBoard(0, 3);
         fillStartBoard(5, 8);
 
-        /**
-        final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (currentPlayerID != userID) {
-                    startWatching();
-                    handler.postDelayed(this, 3000);
-                }
-            }
-        }, 3000);
-         */
+        // Sets the "Current player" to the proper text
+        if (userID == 1) {
+            TextView current = findViewById(R.id.currentPlayer);
+            current.setText("Them...");
+        } else {
+            TextView current = findViewById(R.id.currentPlayer);
+            current.setText("You!");
+        }
 
+        // Begins game with only the player who joined watching the server
         if (userID == 1) {
             startWatching();
         }
     }
 
     /**
-     * psuedocode for server aspect
-     * List storedList = new List[]
-     * while (notMoved) {
-     *     wait 2 seconds
-     *     list = GET blah.amazonaws.com:8765/?{gameid}
-     *     if (list.length() > storedList.length()) {
-     *         newMove = list[list.length() - 1];
-     *         String origSpot = newMove.substring(0,2);
-     *         String newSpot = newMove.substring(2);
-     *         recent = (Button) findviewbyId(pieceLocations.get(origSpot))
-     *         toPass = (Button) findviewbyID(pieceLocations.get(newSpot))
-     *         movePiece(toPass)
-     *         notMoved = false;
-     *     } else {
-     *         copy(list, storedList);
-     *     }
-     * }
+     * Called by startWatching's handler every half second, and is passed the length of the server
+     * array when it began watching.
+     * Sends a get request and compares the new length to the old, and upon a difference being found,
+     * takes the newest (last) value in the server array and executes serverMove, then sets
+     * newValueFound = true, breaking the handler loop
      */
     public void watchForChange(final int initialLength) {
         System.out.println("watchForChange called!");
@@ -204,10 +192,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             public void run() {
                                 if (!newEntryFound) {
                                     watchForChange(array.length);
-                                    handler.postDelayed(this, 4500);
+                                    handler.postDelayed(this, 500);
                                 }
                             }
-                        }, 3000);
+                        }, 100);
                     }
                 }, new Response.ErrorListener() {
 
@@ -238,6 +226,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         movePiece(newSpot);
     }
 
+    /**
+     * Posts the move to the server, and upon the server returning, starts watching for the other players move.
+     */
     public void postMove(final String move) {
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url + "post", new Response.Listener<String>() {
             @Override
@@ -264,23 +255,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         queue.add(stringRequest);
         System.out.println("Post move called!");
     }
+
+    /**
+     * First checks that the user is actually the one supposed to be clicking, then checks that
+     * the clicked button contains a checker of that user. If it does, that button is marked by storing it
+     * in the recent button.
+     * If it does not, it checks whether recent contains a button and calls movePiece.
+     * If movePiece occurred successfully (not null), then the move is posted to the server.
+     */
     @Override
     public void onClick(View view) {
-        /**First checks if the clicked button contains a checker. If it does, that button is marked by storing it
-         * in the recent button. If it does not, it checks whether recent contains a button and fills the clicked
-         * button with recent's drawable. So we need to revise the code and in the if else and move it into a seperate
-         * method for convenience
-         */
-        if (pieceLocations.containsValue(view.getId())) { /** Here is where we're going to check current player against the user player */
-            if (currentPlayerID == playerLocations.get(view.getTag().toString().substring(7))) { /** this part may be redundant once we implement the HTTP move making */
-                recent = (Button) view;
-                // Toast.makeText(this, "Recent set", Toast.LENGTH_SHORT).show();
-            }
-        } else if (recent != null) {
-            String moveMade = movePiece(view);
-            // if moveMade != null, POST it to server so other player's game updates.
-            if (moveMade != null) {
-                postMove(moveMade);
+        checkWinner();
+        if (currentPlayerID == userID) {
+            if (pieceLocations.containsValue(view.getId())) {
+                int cellPID = playerLocations.get(view.getTag().toString().substring(7));
+                if (userID == cellPID || (userID == 1 && cellPID == 3) || (userID == 2 && cellPID == 4)) {
+                    recent = (Button) view;
+                    // Toast.makeText(this, "Recent set", Toast.LENGTH_SHORT).show();
+                }
+            } else if (recent != null) {
+                String moveMade = movePiece(view);
+                // if moveMade != null, POST it to server so other player's game updates.
+                if (moveMade != null) {
+                    postMove(moveMade);
+                }
             }
         }
     }
@@ -292,8 +290,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      *  returns null if the move was not valid.
      * */
     public String movePiece(View view) {
-        // Toast below shows the clicked button's id for debugging / me figuring this out
-        // Toast.makeText(this, newCell, Toast.LENGTH_SHORT).show();
         String newCell = view.getTag().toString().substring(7); //holds the id of the potential cell to be moved to
         String prevCell = recent.getTag().toString().substring(7); // id of current cell
         int newY = Integer.parseInt(newCell.substring(0,1));
@@ -301,10 +297,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int oldY = Integer.parseInt(prevCell.substring(0,1));
         int oldX = Integer.parseInt(prevCell.substring(1));
         String move = prevCell + newCell;
-        if ((newY % 2 == 0 && newX % 2 == 1) || (newY % 2 == 1 && newX % 2 == 0)) { // only allow moves to brown squares
+        boolean isKing = (playerLocations.get(prevCell) == 3 || playerLocations.get(prevCell) == 4);
+        if ((newY % 2 == 0 && newX % 2 == 1) || (newY % 2 == 1 && newX % 2 == 0) &&
+                (isKing || followsRules(prevCell, newCell))) { // only allow moves to brown squares, and either needs to follow rules or be king
             if ((newY == oldY - 1) && (newX == oldX - 1 || newX == oldX + 1) ||
                     (newY == oldY + 1) && (newX == oldX - 1 || newX == oldX + 1)) { // only allow moves to directly diagonal squares
                 moveHelper(view, prevCell, newCell);
+                toKing(view, newY, newCell);
                 togglePlayers();
                 return move;
                 // Toast.makeText(this, Integer.toString(view.getId()), Toast.LENGTH_SHORT).show();
@@ -315,6 +314,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
+                    toKing(view, newY, newCell);
                     togglePlayers();
                     return move;
                 }
@@ -325,6 +325,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
+                    toKing(view, newY, newCell);
+                    checkWinner();
                     togglePlayers();
                     return move;
                 }
@@ -335,6 +337,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
+                    toKing(view, newY, newCell);
+                    checkWinner();
                     togglePlayers();
                     return move;
                 }
@@ -345,6 +349,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     pieceLocations.remove(middle);
                     playerLocations.remove(middle);
                     moveHelper(view, prevCell, newCell);
+                    toKing(view, newY, newCell);
+                    checkWinner();
                     togglePlayers();
                     return move;
                 }
@@ -353,26 +359,93 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return null;
     }
 
+    /**
+     * Actually executes the moving of the piece for movePiece, to shorten code.
+     * Changes the foreground of the new spot to that of the old spot, but more importantly,
+     * updates the maps of the locations properly.
+     */
     public void moveHelper(View view, String prevCell, String newCell) {
         view.setForeground(recent.getForeground());
         pieceLocations.remove(prevCell);
+        int prevPID = playerLocations.get(prevCell);
         playerLocations.remove(prevCell);
         pieceLocations.put(newCell, view.getId());
-        playerLocations.put(newCell, currentPlayerID); // Be careful about this
+        playerLocations.put(newCell, prevPID); // Be careful about this
         recent.setForeground(null);
         recent = null;
     }
+
     /** flip flop the current players, call every time a move is successfully made */
     public void togglePlayers() {
         if (currentPlayerID == 1) {
             currentPlayerID = 2;
             TextView current = findViewById(R.id.currentPlayer);
-            current.setText(Integer.toString(currentPlayerID));
-
+            if (currentPlayerID == userID) {
+                current.setText("You!");
+            } else {
+                current.setText("Them...");
+            }
         } else {
             currentPlayerID = 1;
             TextView current = findViewById(R.id.currentPlayer);
-            current.setText(Integer.toString(currentPlayerID));
+            if (currentPlayerID == userID) {
+                current.setText("You!");
+            } else {
+                current.setText("Them...");
+            }
+        }
+    }
+
+    /**
+     * Checks that a move follows the rules of checkers (only move forward, can't jump piece of
+     * same color)
+     */
+    public boolean followsRules(String prevCell, String newCell) {
+        int newY = Integer.parseInt(newCell.substring(0,1));
+        int newX = Integer.parseInt(newCell.substring(1));
+        int oldY = Integer.parseInt(prevCell.substring(0,1));
+        int oldX = Integer.parseInt(prevCell.substring(1));
+        if (playerLocations.get(newCell) != null) {
+            recent = null;
+            return false;
+        } else if (Math.abs(newY - oldY) == 2 && Math.abs(newX - oldX) == 2) { // can't jump over piece of same color
+            String middle = "" + (oldY + ((newY - oldY) / 2)) + (oldX + ((newX - oldX) / 2));
+            if (playerLocations.get(middle) % 2 == playerLocations.get(prevCell) % 2) {
+                recent = null;
+                return false;
+            }
+        }
+        if (playerLocations.get(prevCell) == 1) {
+            if (newY <= oldY) {
+                return false;
+            }
+        } else if (playerLocations.get(prevCell) == 2) {
+            if (newY >= oldY) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Converts a regular piece to a king if it makes it to the other side
+     */
+    public void toKing(View view, int newY, String newCell) {
+        if (newY == 7 && playerLocations.get(newCell) == 1) {
+            view.setForeground(getResources().getDrawable(R.drawable.checker_piece1_king, null));
+            playerLocations.remove(newCell);
+            pieceLocations.remove(newCell);
+            playerLocations.put(newCell, 3);
+            pieceLocations.put(newCell, view.getId());
+            //Toast.makeText(this, Integer.toString(playerLocations.get(newCell)), Toast.LENGTH_SHORT).show();
+
+        } else if (newY == 0 && playerLocations.get(newCell) == 2) {
+            view.setForeground(getResources().getDrawable(R.drawable.checker_piece2_king, null));
+            playerLocations.remove(newCell);
+            pieceLocations.remove(newCell);
+            playerLocations.put(newCell, 4);
+            pieceLocations.put(newCell, view.getId());
+            //Toast.makeText(this, Integer.toString(playerLocations.get(newCell)), Toast.LENGTH_SHORT).show();
         }
     }
     /** Fills the the board by placing pieces on both sides. */
@@ -398,6 +471,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             b.setForeground(getResources().getDrawable(R.drawable.checker_piece2, null));
             pieceLocations.put(tag, id);
             playerLocations.put(tag, 2);
+        }
+    }
+
+    /** Checks for winner, shows dialog if there is */
+    public void checkWinner() {
+        String result;
+        boolean player1Dead = true;
+        boolean player2Dead = true;
+        for (Map.Entry<String,Integer> entry : playerLocations.entrySet()) {
+            if (entry.getValue() == 1 || entry.getValue() == 3) {
+                player1Dead = false;
+            } else if (entry.getValue() == 2 || entry.getValue() == 4) {
+                player2Dead = false;
+            }
+        }
+        if (player1Dead) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            if (userID == 1) {
+                builder.setMessage("You lost...");
+            } else {
+                builder.setMessage("You won!!!");
+            }
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        } else if (player2Dead) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            if (userID == 2) {
+                builder.setMessage("You lost...");
+            } else {
+                builder.setMessage("You won!!!");
+            }
+            AlertDialog dialog = builder.create();
+            dialog.show();
         }
     }
 }
